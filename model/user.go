@@ -51,6 +51,7 @@ type User struct {
 	Remark           string         `json:"remark,omitempty" gorm:"type:varchar(255)" validate:"max=255"`
 	StripeCustomer   string         `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
 	AgentId          *int           `json:"agent_id" gorm:"column:agent_id;index;default:null"`
+	AgentUsername    string         `json:"agent_username" gorm:"-"` // virtual field, not stored in DB
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -159,6 +160,35 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 	return string(configBytes)
 }
 
+// fillAgentUsername populates AgentUsername from AgentId for a slice of users.
+func fillAgentUsername(users []*User) {
+	// collect unique agent IDs
+	idSet := make(map[int]struct{})
+	for _, u := range users {
+		if u.AgentId != nil {
+			idSet[*u.AgentId] = struct{}{}
+		}
+	}
+	if len(idSet) == 0 {
+		return
+	}
+	ids := make([]int, 0, len(idSet))
+	for id := range idSet {
+		ids = append(ids, id)
+	}
+	var agents []User
+	DB.Select("id, username").Where("id IN ?", ids).Find(&agents)
+	idToName := make(map[int]string, len(agents))
+	for _, a := range agents {
+		idToName[a.Id] = a.Username
+	}
+	for _, u := range users {
+		if u.AgentId != nil {
+			u.AgentUsername = idToName[*u.AgentId]
+		}
+	}
+}
+
 // CheckUserExistOrDeleted check if user exist or deleted, if not exist, return false, nil, if deleted or exist, return true, nil
 func CheckUserExistOrDeleted(username string, email string) (bool, error) {
 	var user User
@@ -220,6 +250,7 @@ func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err err
 		return nil, 0, err
 	}
 
+	fillAgentUsername(users)
 	return users, total, nil
 }
 
@@ -287,6 +318,7 @@ func SearchUsers(keyword string, group string, startIdx int, num int) ([]*User, 
 		return nil, 0, err
 	}
 
+	fillAgentUsername(users)
 	return users, total, nil
 }
 
@@ -300,6 +332,9 @@ func GetUserById(id int, selectAll bool) (*User, error) {
 		err = DB.First(&user, "id = ?", id).Error
 	} else {
 		err = DB.Omit("password").First(&user, "id = ?", id).Error
+	}
+	if err == nil && user.AgentId != nil {
+		user.AgentUsername, _ = GetUsernameById(*user.AgentId, false)
 	}
 	return &user, err
 }
@@ -517,6 +552,17 @@ func (user *User) Edit(updatePassword bool) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// resolve agent_username -> agent_id
+	if user.AgentUsername != "" {
+		var agent User
+		if err = DB.Select("id").Where("username = ?", user.AgentUsername).First(&agent).Error; err != nil {
+			return errors.New("代理商用户名不存在: " + user.AgentUsername)
+		}
+		user.AgentId = &agent.Id
+	} else {
+		user.AgentId = nil
 	}
 
 	newUser := *user

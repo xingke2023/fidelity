@@ -3381,6 +3381,6 @@
     "设为代理商": "Set as Agent",
     "取消代理商": "Revoke Agent",
     "所属代理商": "Agent",
-    "输入代理商用户 ID，留空则不属于任何代理商": "Enter agent user ID, leave empty for no agent"
+    "输入代理商用户名，留空则不属于任何代理商": "Enter agent username, leave empty for no agent"
   }
 }
