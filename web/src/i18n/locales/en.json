@@ -3376,6 +3376,11 @@
     "从剪贴板粘贴配置": "Paste Config",
     "剪贴板中未检测到连接信息": "No connection info found in clipboard",
     "连接信息已填入": "Connection info applied",
-    "无法读取剪贴板": "Cannot read clipboard"
+    "无法读取剪贴板": "Cannot read clipboard",
+    "代理商": "Agent",
+    "设为代理商": "Set as Agent",
+    "取消代理商": "Revoke Agent",
+    "所属代理商": "Agent",
+    "输入代理商用户 ID，留空则不属于任何代理商": "Enter agent user ID, leave empty for no agent"
   }
 }

@@ -50,12 +50,15 @@ const UsersTable = (usersData) => {
     refresh,
     resetUserPasskey,
     resetUserTwoFA,
+    myRole,
     t,
   } = usersData;
 
   // Modal states
   const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [showDemoteModal, setShowDemoteModal] = useState(false);
+  const [showPromoteAgentModal, setShowPromoteAgentModal] = useState(false);
+  const [showDemoteAgentModal, setShowDemoteAgentModal] = useState(false);
   const [showEnableDisableModal, setShowEnableDisableModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [modalUser, setModalUser] = useState(null);
@@ -74,6 +77,16 @@ const UsersTable = (usersData) => {
   const showDemoteUserModal = (user) => {
     setModalUser(user);
     setShowDemoteModal(true);
+  };
+
+  const showPromoteAgentUserModal = (user) => {
+    setModalUser(user);
+    setShowPromoteAgentModal(true);
+  };
+
+  const showDemoteAgentUserModal = (user) => {
+    setModalUser(user);
+    setShowDemoteAgentModal(true);
   };
 
   const showEnableDisableUserModal = (user, action) => {
@@ -113,6 +126,16 @@ const UsersTable = (usersData) => {
     setShowDemoteModal(false);
   };
 
+  const handlePromoteAgentConfirm = () => {
+    manageUser(modalUser.id, 'promote_agent', modalUser);
+    setShowPromoteAgentModal(false);
+  };
+
+  const handleDemoteAgentConfirm = () => {
+    manageUser(modalUser.id, 'demote_agent', modalUser);
+    setShowDemoteAgentModal(false);
+  };
+
   const handleEnableDisableConfirm = () => {
     manageUser(modalUser.id, enableDisableAction, modalUser);
     setShowEnableDisableModal(false);
@@ -136,11 +159,14 @@ const UsersTable = (usersData) => {
       setShowEditUser,
       showPromoteModal: showPromoteUserModal,
       showDemoteModal: showDemoteUserModal,
+      showPromoteAgentModal: showPromoteAgentUserModal,
+      showDemoteAgentModal: showDemoteAgentUserModal,
       showEnableDisableModal: showEnableDisableUserModal,
       showDeleteModal: showDeleteUserModal,
       showResetPasskeyModal: showResetPasskeyUserModal,
       showResetTwoFAModal: showResetTwoFAUserModal,
       showUserSubscriptionsModal: showUserSubscriptionsUserModal,
+      myRole,
     });
   }, [
     t,
@@ -148,11 +174,14 @@ const UsersTable = (usersData) => {
     setShowEditUser,
     showPromoteUserModal,
     showDemoteUserModal,
+    showPromoteAgentUserModal,
+    showDemoteAgentUserModal,
     showEnableDisableUserModal,
     showDeleteUserModal,
     showResetPasskeyUserModal,
     showResetTwoFAUserModal,
     showUserSubscriptionsUserModal,
+    myRole,
   ]);
 
   // Handle compact mode by removing fixed positioning
@@ -213,6 +242,22 @@ const UsersTable = (usersData) => {
         visible={showDemoteModal}
         onCancel={() => setShowDemoteModal(false)}
         onConfirm={handleDemoteConfirm}
+        user={modalUser}
+        t={t}
+      />
+
+      <PromoteUserModal
+        visible={showPromoteAgentModal}
+        onCancel={() => setShowPromoteAgentModal(false)}
+        onConfirm={handlePromoteAgentConfirm}
+        user={modalUser}
+        t={t}
+      />
+
+      <DemoteUserModal
+        visible={showDemoteAgentModal}
+        onCancel={() => setShowDemoteAgentModal(false)}
+        onConfirm={handleDemoteAgentConfirm}
         user={modalUser}
         t={t}
       />

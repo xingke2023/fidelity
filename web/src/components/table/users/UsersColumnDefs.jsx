@@ -42,6 +42,12 @@ const renderRole = (role, t) => {
           {t('普通用户')}
         </Tag>
       );
+    case 5:
+      return (
+        <Tag color='green' shape='circle'>
+          {t('代理商')}
+        </Tag>
+      );
     case 10:
       return (
         <Tag color='yellow' shape='circle'>
@@ -204,11 +210,14 @@ const renderOperations = (
     setShowEditUser,
     showPromoteModal,
     showDemoteModal,
+    showPromoteAgentModal,
+    showDemoteAgentModal,
     showEnableDisableModal,
     showDeleteModal,
     showResetPasskeyModal,
     showResetTwoFAModal,
     showUserSubscriptionsModal,
+    myRole,
     t,
   },
 ) => {
@@ -288,6 +297,25 @@ const renderOperations = (
       >
         {t('降级')}
       </Button>
+      {myRole === 100 && record.role === 1 && (
+        <Button
+          theme='solid'
+          type='primary'
+          size='small'
+          style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
+          onClick={() => showPromoteAgentModal(record)}
+        >
+          {t('设为代理商')}
+        </Button>
+      )}
+      {myRole === 100 && record.role === 5 && (
+        <Button
+          size='small'
+          onClick={() => showDemoteAgentModal(record)}
+        >
+          {t('取消代理商')}
+        </Button>
+      )}
       <Dropdown menu={moreMenu} trigger='click' position='bottomRight'>
         <Button type='tertiary' size='small' icon={<IconMore />} />
       </Dropdown>
@@ -304,11 +332,14 @@ export const getUsersColumns = ({
   setShowEditUser,
   showPromoteModal,
   showDemoteModal,
+  showPromoteAgentModal,
+  showDemoteAgentModal,
   showEnableDisableModal,
   showDeleteModal,
   showResetPasskeyModal,
   showResetTwoFAModal,
   showUserSubscriptionsModal,
+  myRole,
 }) => {
   return [
     {
@@ -361,11 +392,14 @@ export const getUsersColumns = ({
           setShowEditUser,
           showPromoteModal,
           showDemoteModal,
+          showPromoteAgentModal,
+          showDemoteAgentModal,
           showEnableDisableModal,
           showDeleteModal,
           showResetPasskeyModal,
           showResetTwoFAModal,
           showUserSubscriptionsModal,
+          myRole,
           t,
         }),
     },

@@ -87,6 +87,7 @@ const EditUserModal = (props) => {
     quota: 0,
     group: 'default',
     remark: '',
+    agent_id: null,
   });
 
   const fetchGroups = async () => {
@@ -134,6 +135,7 @@ const EditUserModal = (props) => {
     let payload = { ...values };
     if (typeof payload.quota === 'string')
       payload.quota = parseInt(payload.quota) || 0;
+    if (!payload.agent_id) payload.agent_id = null;
     if (userId) {
       payload.id = parseInt(userId);
     }
@@ -322,6 +324,16 @@ const EditUserModal = (props) => {
                             onClick={() => setIsModalOpen(true)}
                           />
                         </Form.Slot>
+                      </Col>
+
+                      <Col span={24}>
+                        <Form.InputNumber
+                          field='agent_id'
+                          label={t('所属代理商')}
+                          placeholder={t('输入代理商用户 ID，留空则不属于任何代理商')}
+                          min={0}
+                          style={{ width: '100%' }}
+                        />
                       </Col>
                     </Row>
                   </Card>

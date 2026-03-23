@@ -907,6 +907,26 @@ func ManageUser(c *gin.Context) {
 			return
 		}
 		user.Role = common.RoleCommonUser
+	case "promote_agent":
+		if myRole != common.RoleRootUser {
+			common.ApiErrorI18n(c, i18n.MsgUserAdminCannotPromote)
+			return
+		}
+		if user.Role != common.RoleCommonUser {
+			common.ApiError(c, errors.New("只能将普通用户设置为代理商"))
+			return
+		}
+		user.Role = common.RoleAgentUser
+	case "demote_agent":
+		if myRole != common.RoleRootUser {
+			common.ApiErrorI18n(c, i18n.MsgUserAdminCannotPromote)
+			return
+		}
+		if user.Role != common.RoleAgentUser {
+			common.ApiError(c, errors.New("该用户不是代理商"))
+			return
+		}
+		user.Role = common.RoleCommonUser
 	}
 
 	if err := user.Update(false); err != nil {

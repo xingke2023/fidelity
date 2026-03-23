@@ -50,6 +50,7 @@ type User struct {
 	Setting          string         `json:"setting" gorm:"type:text;column:setting"`
 	Remark           string         `json:"remark,omitempty" gorm:"type:varchar(255)" validate:"max=255"`
 	StripeCustomer   string         `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
+	AgentId          *int           `json:"agent_id" gorm:"column:agent_id;index;default:null"`
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -525,6 +526,7 @@ func (user *User) Edit(updatePassword bool) error {
 		"group":        newUser.Group,
 		"quota":        newUser.Quota,
 		"remark":       newUser.Remark,
+		"agent_id":     newUser.AgentId,
 	}
 	if updatePassword {
 		updates["password"] = newUser.Password

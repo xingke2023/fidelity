@@ -17,15 +17,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess } from '../../helpers';
 import { ITEMS_PER_PAGE } from '../../constants';
 import { useTableCompactMode } from '../common/useTableCompactMode';
+import { UserContext } from '../../context/User';
 
 export const useUsersData = () => {
   const { t } = useTranslation();
   const [compactMode, setCompactMode] = useTableCompactMode('users');
+  const [userState] = useContext(UserContext);
+  const myRole = userState?.user?.role ?? 0;
 
   // State management
   const [users, setUsers] = useState([]);
@@ -317,5 +320,8 @@ export const useUsersData = () => {
 
     // Translation
     t,
+
+    // Current user role
+    myRole,
   };
 };
