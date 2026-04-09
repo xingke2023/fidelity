@@ -2880,7 +2880,7 @@
     "认证": "Xác thực",
     "认证失败": "Xác thực thất bại",
     "认证成功": "Xác thực thành công",
-    "认证方式": "Phương thức xác thực",
+    "认证方式": "Xác thực",
     "认证设置": "Cài đặt xác thực",
     "讯飞星火": "iFLYTEK Spark",
     "记录请求与错误日志IP": "Ghi lại IP nhật ký yêu cầu và lỗi",
@@ -3874,7 +3874,7 @@
     "输出价格 {{symbol}}{{price}} / 1M tokens": "Giá đầu ra {{symbol}}{{price}} / 1M tokens",
     "输出价格：{{symbol}}{{price}} / 1M tokens": "Giá đầu ra: {{symbol}}{{price}} / 1M tokens",
     "输出价格：{{symbol}}{{total}} / 1M tokens": "Giá đầu ra: {{symbol}}{{total}} / 1M tokens",
-    "复制密钥": "Sao chép khóa",
+"复制密钥": "Sao chép khóa",
     "复制连接信息": "Sao chép thông tin kết nối",
     "检测到剪贴板中的连接信息": "Phát hiện thông tin kết nối trong bộ nhớ tạm",
     "自动填入": "Tự động điền",
@@ -3882,6 +3882,11 @@
     "从剪贴板粘贴配置": "Dán cấu hình",
     "剪贴板中未检测到连接信息": "Không tìm thấy thông tin kết nối trong bộ nhớ tạm",
     "连接信息已填入": "Đã áp dụng thông tin kết nối",
-    "无法读取剪贴板": "Không thể đọc bộ nhớ tạm"
+    "无法读取剪贴板": "Không thể đọc bộ nhớ tạm",
+    "接口指南": "Hướng dẫn API",
+    "接口使用指南": "Hướng dẫn sử dụng API",
+    "本指南介绍如何通过 OpenAI 兼容接口接入本平台，快速完成应用集成。": "Hướng dẫn này giải thích cách tích hợp nền tảng qua API tương thích OpenAI.",
+    "接口基础地址": "URL cơ sở",
+    "三步开始调用": "Bắt đầu trong 3 bước"
   }
 }

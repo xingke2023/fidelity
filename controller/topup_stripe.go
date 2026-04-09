@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
+	"github.com/shopspring/decimal"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stripe/stripe-go/v81"
@@ -91,22 +93,42 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 
 	id := c.GetInt("id")
 	user, _ := model.GetUserById(id, false)
-	chargedMoney := GetChargedAmount(float64(req.Amount), *user)
+	group, err := model.GetUserGroup(id, true)
+	if err != nil {
+		c.JSON(200, gin.H{"message": "error", "data": "获取用户分组失败"})
+		return
+	}
+	payMoney := getStripePayMoney(float64(req.Amount), group)
+	if payMoney < 0.01 {
+		c.JSON(200, gin.H{"message": "error", "data": "充值金额过低"})
+		return
+	}
 
 	reference := fmt.Sprintf("new-api-ref-%d-%d-%s", user.Id, time.Now().UnixMilli(), randstr.String(4))
 	referenceId := "ref_" + common.Sha1([]byte(reference))
 
-	payLink, err := genStripeLink(referenceId, user.StripeCustomer, user.Email, req.Amount, req.SuccessURL, req.CancelURL)
+	payLink, err := genStripeLink(referenceId, user.StripeCustomer, user.Email, req.Amount, payMoney, req.SuccessURL, req.CancelURL)
 	if err != nil {
 		log.Println("获取Stripe Checkout支付链接失败", err)
 		c.JSON(200, gin.H{"message": "error", "data": "拉起支付失败"})
 		return
 	}
 
+	// 归一化 Amount：token 显示模式下转为 USD 等价单位，与 Epay 保持一致
+	amount := req.Amount
+	if operation_setting.GetQuotaDisplayType() == operation_setting.QuotaDisplayTypeTokens {
+		dAmount := decimal.NewFromInt(req.Amount)
+		dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
+		amount = dAmount.Div(dQuotaPerUnit).IntPart()
+		if amount < 1 {
+			amount = 1
+		}
+	}
+
 	topUp := &model.TopUp{
 		UserId:        id,
-		Amount:        req.Amount,
-		Money:         chargedMoney,
+		Amount:        amount,
+		Money:         payMoney,
 		TradeNo:       referenceId,
 		PaymentMethod: PaymentMethodStripe,
 		CreateTime:    time.Now().Unix(),
@@ -264,11 +286,12 @@ func sessionExpired(event stripe.Event) {
 //   - customerId: existing Stripe customer ID (empty string if new customer)
 //   - email: customer email address for new customer creation
 //   - amount: quantity of units to purchase
+//   - payMoney: actual payment amount in USD
 //   - successURL: custom URL to redirect after successful payment (empty for default)
 //   - cancelURL: custom URL to redirect when payment is canceled (empty for default)
 //
 // Returns the checkout session URL or an error if the session creation fails.
-func genStripeLink(referenceId string, customerId string, email string, amount int64, successURL string, cancelURL string) (string, error) {
+func genStripeLink(referenceId string, customerId string, email string, amount int64, payMoney float64, successURL string, cancelURL string) (string, error) {
 	if !strings.HasPrefix(setting.StripeApiSecret, "sk_") && !strings.HasPrefix(setting.StripeApiSecret, "rk_") {
 		return "", fmt.Errorf("无效的Stripe API密钥")
 	}
@@ -283,14 +306,22 @@ func genStripeLink(referenceId string, customerId string, email string, amount i
 		cancelURL = system_setting.ServerAddress + "/console/topup"
 	}
 
+	amountCents := int64(math.Round(payMoney * 100))
+
 	params := &stripe.CheckoutSessionParams{
 		ClientReferenceID: stripe.String(referenceId),
 		SuccessURL:        stripe.String(successURL),
 		CancelURL:         stripe.String(cancelURL),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
-				Price:    stripe.String(setting.StripePriceId),
-				Quantity: stripe.Int64(amount),
+				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
+					Currency: stripe.String("cny"),
+					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
+						Name: stripe.String(fmt.Sprintf("充值 %d 额度", amount)),
+					},
+					UnitAmount: stripe.Int64(amountCents),
+				},
+				Quantity: stripe.Int64(1),
 			},
 		},
 		Mode:                stripe.String(string(stripe.CheckoutSessionModePayment)),

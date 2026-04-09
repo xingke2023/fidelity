@@ -49,6 +49,7 @@ const routerMap = {
   deployment: '/console/deployment',
   playground: '/console/playground',
   personal: '/console/personal',
+  'api-guide': '/guide',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -88,6 +89,11 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('使用日志'),
         itemKey: 'log',
         to: '/log',
+      },
+      {
+        text: t('接口指南'),
+        itemKey: 'api-guide',
+        to: '/api-guide',
       },
       {
         text: t('绘图日志'),

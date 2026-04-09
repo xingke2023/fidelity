@@ -27,7 +27,7 @@ func GetTopUpInfo(c *gin.Context) {
 	payMethods := operation_setting.PayMethods
 
 	// 如果启用了 Stripe 支付，添加到支付方法列表
-	if setting.StripeApiSecret != "" && setting.StripeWebhookSecret != "" && setting.StripePriceId != "" {
+	if setting.StripeApiSecret != "" && setting.StripeWebhookSecret != "" {
 		// 检查是否已经包含 Stripe
 		hasStripe := false
 		for _, method := range payMethods {
@@ -48,52 +48,14 @@ func GetTopUpInfo(c *gin.Context) {
 		}
 	}
 
-	// 如果启用了 Waffo 支付，添加到支付方法列表
-	enableWaffo := setting.WaffoEnabled &&
-		((!setting.WaffoSandbox &&
-			setting.WaffoApiKey != "" &&
-			setting.WaffoPrivateKey != "" &&
-			setting.WaffoPublicCert != "") ||
-			(setting.WaffoSandbox &&
-				setting.WaffoSandboxApiKey != "" &&
-				setting.WaffoSandboxPrivateKey != "" &&
-				setting.WaffoSandboxPublicCert != ""))
-	if enableWaffo {
-		hasWaffo := false
-		for _, method := range payMethods {
-			if method["type"] == "waffo" {
-				hasWaffo = true
-				break
-			}
-		}
-
-		if !hasWaffo {
-			waffoMethod := map[string]string{
-				"name":      "Waffo (Global Payment)",
-				"type":      "waffo",
-				"color":     "rgba(var(--semi-blue-5), 1)",
-				"min_topup": strconv.Itoa(setting.WaffoMinTopUp),
-			}
-			payMethods = append(payMethods, waffoMethod)
-		}
-	}
-
 	data := gin.H{
 		"enable_online_topup": operation_setting.PayAddress != "" && operation_setting.EpayId != "" && operation_setting.EpayKey != "",
-		"enable_stripe_topup": setting.StripeApiSecret != "" && setting.StripeWebhookSecret != "" && setting.StripePriceId != "",
+		"enable_stripe_topup": setting.StripeApiSecret != "" && setting.StripeWebhookSecret != "",
 		"enable_creem_topup":  setting.CreemApiKey != "" && setting.CreemProducts != "[]",
-		"enable_waffo_topup": enableWaffo,
-		"waffo_pay_methods": func() interface{} {
-			if enableWaffo {
-				return setting.GetWaffoPayMethods()
-			}
-			return nil
-		}(),
-		"creem_products": setting.CreemProducts,
+		"creem_products":      setting.CreemProducts,
 		"pay_methods":         payMethods,
 		"min_topup":           operation_setting.MinTopUp,
 		"stripe_min_topup":    setting.StripeMinTopUp,
-		"waffo_min_topup":     setting.WaffoMinTopUp,
 		"amount_options":      operation_setting.GetPaymentSetting().AmountOptions,
 		"discount":            operation_setting.GetPaymentSetting().AmountDiscount,
 	}
@@ -125,7 +87,7 @@ func GetEpayClient() *epay.Client {
 
 func getPayMoney(amount int64, group string) float64 {
 	dAmount := decimal.NewFromInt(amount)
-	// 充值金额以“展示类型”为准：
+	// 充值金额以"展示类型"为准：
 	// - USD/CNY: 前端传 amount 为金额单位；TOKENS: 前端传 tokens，需要换成 USD 金额
 	if operation_setting.GetQuotaDisplayType() == operation_setting.QuotaDisplayTypeTokens {
 		dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
@@ -242,42 +204,27 @@ func RequestEpay(c *gin.Context) {
 var orderLocks sync.Map
 var createLock sync.Mutex
 
-// refCountedMutex 带引用计数的互斥锁，确保最后一个使用者才从 map 中删除
-type refCountedMutex struct {
-	mu       sync.Mutex
-	refCount int
-}
-
 // LockOrder 尝试对给定订单号加锁
 func LockOrder(tradeNo string) {
-	createLock.Lock()
-	var rcm *refCountedMutex
-	if v, ok := orderLocks.Load(tradeNo); ok {
-		rcm = v.(*refCountedMutex)
-	} else {
-		rcm = &refCountedMutex{}
-		orderLocks.Store(tradeNo, rcm)
+	lock, ok := orderLocks.Load(tradeNo)
+	if !ok {
+		createLock.Lock()
+		defer createLock.Unlock()
+		lock, ok = orderLocks.Load(tradeNo)
+		if !ok {
+			lock = new(sync.Mutex)
+			orderLocks.Store(tradeNo, lock)
+		}
 	}
-	rcm.refCount++
-	createLock.Unlock()
-	rcm.mu.Lock()
+	lock.(*sync.Mutex).Lock()
 }
 
 // UnlockOrder 释放给定订单号的锁
 func UnlockOrder(tradeNo string) {
-	v, ok := orderLocks.Load(tradeNo)
-	if !ok {
-		return
+	lock, ok := orderLocks.Load(tradeNo)
+	if ok {
+		lock.(*sync.Mutex).Unlock()
 	}
-	rcm := v.(*refCountedMutex)
-	rcm.mu.Unlock()
-
-	createLock.Lock()
-	rcm.refCount--
-	if rcm.refCount == 0 {
-		orderLocks.Delete(tradeNo)
-	}
-	createLock.Unlock()
 }
 
 func EpayNotify(c *gin.Context) {
@@ -463,4 +410,3 @@ func AdminCompleteTopUp(c *gin.Context) {
 	}
 	common.ApiSuccess(c, nil)
 }
-

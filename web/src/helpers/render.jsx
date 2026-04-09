@@ -75,6 +75,7 @@ import {
   Package,
   Server,
   CalendarClock,
+  BookOpen,
 } from 'lucide-react';
 import {
   SiAtlassian,
@@ -147,6 +148,8 @@ export function getLucideIcon(key, selected = false) {
       return <CalendarClock {...commonProps} color={iconColor} />;
     case 'setting':
       return <Settings {...commonProps} color={iconColor} />;
+    case 'api-guide':
+      return <BookOpen {...commonProps} color={iconColor} />;
     default:
       return <CircleUser {...commonProps} color={iconColor} />;
   }

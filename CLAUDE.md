@@ -1,4 +1,6 @@
-# CLAUDE.md — Project Conventions for new-api
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Overview
 
@@ -36,6 +38,103 @@ pkg/           — Internal packages (cachex, ionet)
 web/           — React frontend
   web/src/i18n/  — Frontend internationalization (i18next, zh/en/fr/ru/ja/vi)
 ```
+
+## Commands
+
+### Backend
+
+```bash
+# Run the server (default port 3000, set PORT env to change)
+go run main.go
+
+# Run all tests
+go test ./...
+
+# Run tests in a specific package
+go test ./relay/channel/claude/...
+
+# Run a single test
+go test ./service/ -run TestChannelAffinityUsageCache
+
+# Build binary
+go build -o new-api main.go
+```
+
+### Frontend (`web/` directory)
+
+```bash
+bun install                  # install dependencies
+bun run dev                  # dev server (Vite, port 5173)
+DISABLE_ESLINT_PLUGIN=true VITE_REACT_APP_VERSION=$(cat ../VERSION) bun run build
+bun run lint                 # check formatting (prettier)
+bun run lint:fix             # auto-fix formatting
+bun run eslint               # lint JS/JSX
+bun run i18n:extract         # extract new i18n keys from source
+bun run i18n:sync            # sync keys across locale files
+bun run i18n:lint            # check for missing translations
+```
+
+### Full build (frontend + backend)
+
+```bash
+make                         # builds frontend then starts backend
+make build-frontend
+make start-backend
+```
+
+## Relay Architecture
+
+The relay subsystem (`relay/`) is the core of the proxy. Request flow:
+
+```
+HTTP Request
+  → middleware/distributor.go   (Distribute)  — selects channel from abilities table
+  → relay/*_handler.go          (handler)      — entry point per endpoint type
+  → relay/channel/<provider>/   (Adaptor)      — provider-specific conversion
+  → upstream API
+  → DoResponse()                               — parse response, calculate billing
+```
+
+Key interfaces in `relay/channel/adapter.go`:
+
+- **`Adaptor`** — implemented by every sync provider. Methods: `Init`, `GetRequestURL`, `SetupRequestHeader`, `ConvertOpenAIRequest`, `ConvertClaudeRequest`, `ConvertGeminiRequest`, `ConvertEmbeddingRequest`, `ConvertImageRequest`, `ConvertAudioRequest`, `ConvertOpenAIResponsesRequest`, `DoRequest`, `DoResponse`.
+- **`TaskAdaptor`** — for async providers (Midjourney, Suno, Kling, etc.). Methods: `ValidateRequestAndSetAction`, `EstimateBilling`, `AdjustBillingOnSubmit`, `AdjustBillingOnComplete`, `DoRequest`, `DoResponse`, `ParseTaskResult`.
+
+`relay/relay_adaptor.go` maps `constant.APIType*` integers to concrete `Adaptor` structs via `GetAdaptor(apiType int)`.
+
+`relay/common/relay_info.go` — `RelayInfo` is the context object passed through the whole relay pipeline, carrying channel metadata, token info, model name, billing state, etc.
+
+### Adding a new channel
+
+1. Create `relay/channel/<name>/` with a struct implementing `Adaptor`.
+2. Register it in `relay/relay_adaptor.go` → `GetAdaptor`.
+3. Add a `constant.APIType*` constant in `constant/`.
+4. Add a `constant.ChannelType*` and map it to the API type.
+5. If the provider supports `StreamOptions`, add it to `streamSupportedChannels` (`relay/helper/`).
+6. Add pricing defaults in `model/pricing_default.go`.
+
+## Channel Dispatch
+
+`middleware/distributor.go` (`Distribute()`) selects a channel for each request:
+
+1. Reads model name from request body.
+2. Queries the `abilities` table (group + model → channel list).
+3. Applies priority → weight → random selection.
+4. Falls back to cross-group retry if configured on the token.
+5. Sets selected channel on `gin.Context` for downstream handlers.
+
+## Settings Architecture
+
+`setting/` is split into sub-packages, each owning a domain of in-memory config vars loaded from the `options` DB table at startup and refreshed on change:
+
+| Sub-package | Domain |
+|---|---|
+| `operation_setting/` | Registration, quotas, invites, auto-ban keywords |
+| `model_setting/` | Model pricing, ratio overrides |
+| `ratio_setting/` | Group/channel ratio multipliers |
+| `system_setting/` | Site title, footer, SMTP, payment keys |
+| `performance_setting/` | Cache TTLs, worker counts |
+| `console_setting/` | Dashboard display flags |
 
 ## Internationalization (i18n)
 
