@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
-
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
@@ -20,7 +18,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
-	"github.com/samber/lo"
 )
 
 // ============================
@@ -100,6 +97,8 @@ type responseTask struct {
 // Adaptor implementation
 // ============================
 
+const contextKeyDoubaoPayload = "doubao_request_payload"
+
 type TaskAdaptor struct {
 	taskcommon.BaseBilling
 	ChannelType int
@@ -113,10 +112,18 @@ func (a *TaskAdaptor) Init(info *relaycommon.RelayInfo) {
 	a.apiKey = info.ApiKey
 }
 
-// ValidateRequestAndSetAction parses body, validates fields and sets default action.
-func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycommon.RelayInfo) (taskErr *dto.TaskError) {
-	// Accept only POST /v1/video/generations as "generate" action.
-	return relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate)
+// ValidateRequestAndSetAction 直接解析官方格式请求体，存入 context。
+func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskError {
+	var payload requestPayload
+	if err := common.UnmarshalBodyReusable(c, &payload); err != nil {
+		return service.TaskErrorWrapper(err, "invalid_request", http.StatusBadRequest)
+	}
+	if payload.Model == "" {
+		return service.TaskErrorWrapper(fmt.Errorf("model is required"), "invalid_request", http.StatusBadRequest)
+	}
+	info.Action = constant.TaskActionGenerate
+	c.Set(contextKeyDoubaoPayload, &payload)
+	return nil
 }
 
 // BuildRequestURL constructs the upstream URL.
@@ -132,13 +139,28 @@ func (a *TaskAdaptor) BuildRequestHeader(_ *gin.Context, req *http.Request, _ *r
 	return nil
 }
 
-// EstimateBilling 检测请求 metadata 中是否包含视频输入，返回视频折扣 OtherRatio。
+// EstimateBilling 处理提交阶段计费估算。
+// 后扣费模型（seedance-2-0 系列）：设置 FreeModel=true、Quota=0，跳过预扣费；
+// OtherRatios 仍正常返回，由 controller 写入 BillingContext，供完成时 token 重算使用。
 func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
-	req, err := relaycommon.GetTaskRequest(c)
-	if err != nil {
+	payload := getPayload(c)
+	if payload == nil {
 		return nil
 	}
-	if hasVideoInMetadata(req.Metadata) {
+
+	if isPostBillingModel(info.OriginModelName) {
+		// 后扣费：提交时不预扣，任务完成后按实际 total_tokens 结算
+		info.PriceData.FreeModel = true
+		info.PriceData.Quota = 0
+		if hasVideoInContent(payload.Content) {
+			if ratio, ok := GetVideoInputRatio(info.OriginModelName); ok {
+				return map[string]float64{"video_input": ratio}
+			}
+		}
+		return nil
+	}
+
+	if hasVideoInContent(payload.Content) {
 		if ratio, ok := GetVideoInputRatio(info.OriginModelName); ok {
 			return map[string]float64{"video_input": ratio}
 		}
@@ -146,52 +168,18 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 	return nil
 }
 
-// hasVideoInMetadata 直接检查 metadata 的 content 数组是否包含 video_url 条目，
-// 避免构建完整的上游 requestPayload。
-func hasVideoInMetadata(metadata map[string]interface{}) bool {
-	if metadata == nil {
-		return false
-	}
-	contentRaw, ok := metadata["content"]
-	if !ok {
-		return false
-	}
-	contentSlice, ok := contentRaw.([]interface{})
-	if !ok {
-		return false
-	}
-	for _, item := range contentSlice {
-		itemMap, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		if itemMap["type"] == "video_url" {
-			return true
-		}
-		if _, has := itemMap["video_url"]; has {
-			return true
-		}
-	}
-	return false
-}
-
-// BuildRequestBody converts request into Doubao specific format.
+// BuildRequestBody 直接透传官方格式，仅在模型映射时替换 model 字段。
 func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayInfo) (io.Reader, error) {
-	req, err := relaycommon.GetTaskRequest(c)
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := a.convertToRequestPayload(&req)
-	if err != nil {
-		return nil, errors.Wrap(err, "convert request payload failed")
+	payload := getPayload(c)
+	if payload == nil {
+		return nil, fmt.Errorf("doubao payload not found in context")
 	}
 	if info.IsModelMapped {
-		body.Model = info.UpstreamModelName
+		payload.Model = info.UpstreamModelName
 	} else {
-		info.UpstreamModelName = body.Model
+		info.UpstreamModelName = payload.Model
 	}
-	data, err := common.Marshal(body)
+	data, err := common.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +200,6 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 	}
 	_ = resp.Body.Close()
 
-	// Parse Doubao response
 	var dResp responsePayload
 	if err := common.Unmarshal(responseBody, &dResp); err != nil {
 		taskErr = service.TaskErrorWrapper(errors.Wrapf(err, "body: %s", responseBody), "unmarshal_response_body_failed", http.StatusInternalServerError)
@@ -267,42 +254,6 @@ func (a *TaskAdaptor) GetChannelName() string {
 	return ChannelName
 }
 
-func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*requestPayload, error) {
-	r := requestPayload{
-		Model:   req.Model,
-		Content: []ContentItem{},
-	}
-
-	// Add images if present
-	if req.HasImage() {
-		for _, imgURL := range req.Images {
-			r.Content = append(r.Content, ContentItem{
-				Type: "image_url",
-				ImageURL: &MediaURL{
-					URL: imgURL,
-				},
-			})
-		}
-	}
-
-	metadata := req.Metadata
-	if err := taskcommon.UnmarshalMetadata(metadata, &r); err != nil {
-		return nil, errors.Wrap(err, "unmarshal metadata failed")
-	}
-
-	if sec, _ := strconv.Atoi(req.Seconds); sec > 0 {
-		r.Duration = lo.ToPtr(dto.IntValue(sec))
-	}
-
-	r.Content = lo.Reject(r.Content, func(c ContentItem, _ int) bool { return c.Type == "text" })
-	r.Content = append(r.Content, ContentItem{
-		Type: "text",
-		Text: req.Prompt,
-	})
-
-	return &r, nil
-}
-
 func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
 	resTask := responseTask{}
 	if err := common.Unmarshal(respBody, &resTask); err != nil {
@@ -313,7 +264,6 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 		Code: 0,
 	}
 
-	// Map Doubao status to internal status
 	switch resTask.Status {
 	case "pending", "queued":
 		taskResult.Status = model.TaskStatusQueued
@@ -325,7 +275,6 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 		taskResult.Status = model.TaskStatusSuccess
 		taskResult.Progress = "100%"
 		taskResult.Url = resTask.Content.VideoURL
-		// 解析 usage 信息用于按倍率计费
 		taskResult.CompletionTokens = resTask.Usage.CompletionTokens
 		taskResult.TotalTokens = resTask.Usage.TotalTokens
 	case "failed":
@@ -333,7 +282,6 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 		taskResult.Progress = "100%"
 		taskResult.Reason = resTask.Error.Message
 	default:
-		// Unknown status, treat as processing
 		taskResult.Status = model.TaskStatusInProgress
 		taskResult.Progress = "30%"
 	}
@@ -365,4 +313,26 @@ func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, erro
 	}
 
 	return common.Marshal(openAIVideo)
+}
+
+// ============================
+// Helpers
+// ============================
+
+func getPayload(c *gin.Context) *requestPayload {
+	v, exists := c.Get(contextKeyDoubaoPayload)
+	if !exists {
+		return nil
+	}
+	p, _ := v.(*requestPayload)
+	return p
+}
+
+func hasVideoInContent(content []ContentItem) bool {
+	for _, item := range content {
+		if item.Type == "video_url" || item.VideoURL != nil {
+			return true
+		}
+	}
+	return false
 }

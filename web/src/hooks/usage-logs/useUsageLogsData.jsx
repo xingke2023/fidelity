@@ -500,7 +500,7 @@ export const useLogsData = () => {
         if (!isViolationFeeLog) {
           const isTaskLog = other?.is_task === true || other?.task_id != null;
           if (isTaskLog && other?.model_price === -1) {
-            content = renderTaskBillingProcess(other, logs[i].content);
+            content = renderTaskBillingProcess(other, logs[i].content, logs[i].completion_tokens, logs[i].quota);
           } else if (other?.ws || other?.audio) {
             content = renderAudioModelPrice(
               other?.text_input,

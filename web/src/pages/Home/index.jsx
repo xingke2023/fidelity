@@ -157,62 +157,65 @@ const Home = () => {
       />
       {homePageContentLoaded && homePageContent === '' ? (
         <div className='w-full overflow-x-hidden'>
-          {/* Banner 部分 */}
-          <div className='w-full border-b border-semi-color-border min-h-[500px] md:min-h-[600px] lg:min-h-[700px] relative overflow-x-hidden'>
+          {/* Hero：左右两栏，单屏显示 */}
+          <div className='w-full border-b border-semi-color-border min-h-[calc(100vh-60px)] relative overflow-x-hidden flex items-center'>
             {/* 背景模糊晕染球 */}
             <div className='blur-ball blur-ball-indigo' />
             <div className='blur-ball blur-ball-teal' />
-            <div className='flex items-center justify-center h-full px-4 py-20 md:py-24 lg:py-32 mt-10'>
-              {/* 居中内容区 */}
-              <div className='flex flex-col items-center justify-center text-center max-w-4xl mx-auto'>
-                <div className='flex flex-col items-center justify-center mb-6 md:mb-8'>
-                  <h1
-                    className={`text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-semi-color-text-0 leading-tight ${isChinese ? 'tracking-wide md:tracking-wider' : ''}`}
-                  >
-                    <>
-                      {t('统一的')}
-                      <br />
-                      <span className='shine-text'>{t('大模型接口网关')}</span>
-                    </>
-                  </h1>
-                  <p className='text-base md:text-lg lg:text-xl text-semi-color-text-1 mt-4 md:mt-6 max-w-xl'>
-                    {t('更好的价格，更好的稳定性，只需要将模型基址替换为：')}
-                  </p>
-                  {/* BASE URL 与端点选择 */}
-                  <div className='flex flex-col md:flex-row items-center justify-center gap-4 w-full mt-4 md:mt-6 max-w-md'>
-                    <Input
-                      readonly
-                      value={serverAddress}
-                      className='flex-1 !rounded-full'
-                      size={isMobile ? 'default' : 'large'}
-                      suffix={
-                        <div className='flex items-center gap-2'>
-                          <ScrollList
-                            bodyHeight={32}
-                            style={{ border: 'unset', boxShadow: 'unset' }}
-                          >
-                            <ScrollItem
-                              mode='wheel'
-                              cycled={true}
-                              list={endpointItems}
-                              selectedIndex={endpointIndex}
-                              onSelect={({ index }) => setEndpointIndex(index)}
-                            />
-                          </ScrollList>
-                          <Button
-                            type='primary'
-                            onClick={handleCopyBaseURL}
-                            icon={<IconCopy />}
-                            className='!rounded-full'
+
+            <div className='w-full max-w-7xl mx-auto px-4 md:px-8 pt-20 pb-12 md:pt-12 md:pb-16 flex flex-col gap-10'>
+
+              {/* 上半区：左右两栏 */}
+              <div className='flex flex-col lg:flex-row items-center gap-6 lg:gap-8'>
+
+              {/* 左列：主内容 */}
+              <div className='flex-1 flex flex-col items-center lg:items-start text-center lg:text-left'>
+                <div className={`text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-semi-color-text-0 leading-tight ${isChinese ? 'tracking-wide md:tracking-wider' : ''}`}>
+                  {t('统一的')}
+                </div>
+
+                <div className={`text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight ${isChinese ? 'tracking-wide md:tracking-wider' : ''}`}>
+                  <span className='shine-text'>{t('大模型接口网关')}</span>
+                </div>
+
+                <p className='text-base md:text-lg text-semi-color-text-1 mt-4 md:mt-6 max-w-md'>
+                  {t('更好的价格，更好的稳定性，只需要将模型基址替换为：')}
+                </p>
+
+                {/* BASE URL */}
+                <div className='w-full mt-4 md:mt-6 max-w-md'>
+                  <Input
+                    readonly
+                    value={serverAddress}
+                    className='flex-1 !rounded-full'
+                    size={isMobile ? 'default' : 'large'}
+                    suffix={
+                      <div className='flex items-center gap-2'>
+                        <ScrollList
+                          bodyHeight={32}
+                          style={{ border: 'unset', boxShadow: 'unset' }}
+                        >
+                          <ScrollItem
+                            mode='wheel'
+                            cycled={true}
+                            list={endpointItems}
+                            selectedIndex={endpointIndex}
+                            onSelect={({ index }) => setEndpointIndex(index)}
                           />
-                        </div>
-                      }
-                    />
-                  </div>
+                        </ScrollList>
+                        <Button
+                          type='primary'
+                          onClick={handleCopyBaseURL}
+                          icon={<IconCopy />}
+                          className='!rounded-full'
+                        />
+                      </div>
+                    }
+                  />
                 </div>
 
                 {/* 操作按钮 */}
-                <div className='flex flex-row gap-4 justify-center items-center'>
+                <div className='flex flex-row gap-4 justify-center lg:justify-start items-center mt-6'>
                   <Link to='/console'>
                     <Button
                       theme='solid'
@@ -251,86 +254,84 @@ const Home = () => {
                     )
                   )}
                 </div>
+              </div>
 
-                {/* 框架兼容性图标 */}
-                <div className='mt-12 md:mt-16 lg:mt-20 w-full'>
-                  <div className='flex items-center mb-6 md:mb-8 justify-center'>
-                    <Text
-                      type='tertiary'
-                      className='text-lg md:text-xl lg:text-2xl font-light'
-                    >
-                      {t('支持众多的大模型供应商')}
-                    </Text>
-                  </div>
-                  <div className='flex flex-wrap items-center justify-center gap-3 sm:gap-4 md:gap-6 lg:gap-8 max-w-5xl mx-auto px-4'>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Moonshot size={40} />
+              {/* 右列：Seedance 广告卡（视频背景） */}
+              <div className='w-full lg:w-[460px] xl:w-[520px] flex-shrink-0 seedance-ad-section'>
+                <a
+                  href='https://demo1.xingke888.com/video'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  style={{ textDecoration: 'none', display: 'block' }}
+                >
+                  <div className='seedance-card' style={{ padding: 0, overflow: 'hidden', minHeight: '420px' }}>
+                    {/* 视频背景 */}
+                    <video
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0, borderRadius: '24px' }}
+                      src='https://ark-common-storage-prod-cn-beijing.tos-cn-beijing.volces.com/presets/experience/gen_video/model-promotion/seedance-2-0/firstScreen/group4/output.mp4'
+                    />
+                    {/* 遮罩：底部渐变，确保文字可读 */}
+                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(to top, rgba(10,8,30,0.92) 0%, rgba(10,8,30,0.4) 50%, rgba(10,8,30,0.1) 100%)', borderRadius: '24px' }} />
+                    {/* 顶部角标 */}
+                    <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 2 }}>
+                      <span className='seedance-tag'>FidelityAI 最新接入</span>
                     </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <OpenAI size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <XAI size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Zhipu.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Volcengine.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Cohere.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Claude.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Gemini.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Suno size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Minimax.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Wenxin.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Spark.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Qingyan.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <DeepSeek.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Qwen.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Midjourney size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Grok size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <AzureAI.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Hunyuan.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Xinference.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Typography.Text className='!text-lg sm:!text-xl md:!text-2xl lg:!text-3xl font-bold'>
-                        30+
-                      </Typography.Text>
+                    {/* 底部文案 */}
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2, padding: '28px 28px 24px' }}>
+                      <h2 className='text-2xl md:text-3xl font-bold text-white mb-1 leading-tight'>
+                        <span className='seedance-shimmer-text'>Seedance 2.0</span>
+                      </h2>
+                      <p className='text-sm font-medium mb-3' style={{ color: 'rgba(255,255,255,0.75)' }}>
+                        AI 视频制作工具 · 豆包最新一代视频生成模型
+                      </p>
+                      <div className='flex gap-4 mb-4 flex-wrap'>
+                        <div className='seedance-feature-item'>
+                          <div className='seedance-feature-dot' /><span>极速生成</span>
+                        </div>
+                        <div className='seedance-feature-item'>
+                          <div className='seedance-feature-dot' /><span>文生 / 图生视频</span>
+                        </div>
+                        <div className='seedance-feature-item'>
+                          <div className='seedance-feature-dot' /><span>超高画质</span>
+                        </div>
+                      </div>
+                      <span className='seedance-cta' style={{ fontSize: '14px', padding: '10px 24px' }}>
+                        立即体验 →
+                      </span>
                     </div>
                   </div>
+                </a>
+              </div>
+
+              </div>{/* end 上半区 */}
+
+              {/* 下半区：供应商图标横跨全宽 */}
+              <div className='w-full pt-4 border-t border-semi-color-border border-opacity-30'>
+                <Text type='tertiary' className='text-xs font-light block mb-3 text-center'>
+                  {t('支持众多的大模型供应商')}
+                </Text>
+                <div className='flex flex-wrap items-center justify-center gap-3 sm:gap-4 md:gap-5'>
+                  {[
+                    <Moonshot size={26} />, <OpenAI size={26} />, <XAI size={26} />,
+                    <Zhipu.Color size={26} />, <Volcengine.Color size={26} />, <Cohere.Color size={26} />,
+                    <Claude.Color size={26} />, <Gemini.Color size={26} />, <Suno size={26} />,
+                    <Minimax.Color size={26} />, <Wenxin.Color size={26} />, <Spark.Color size={26} />,
+                    <DeepSeek.Color size={26} />, <Qwen.Color size={26} />, <Midjourney size={26} />,
+                    <Grok size={26} />, <AzureAI.Color size={26} />, <Hunyuan.Color size={26} />,
+                    <Xinference.Color size={26} />,
+                  ].map((icon, i) => (
+                    <div key={i} className='w-7 h-7 flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity'>
+                      {icon}
+                    </div>
+                  ))}
+                  <Typography.Text className='!text-sm font-bold opacity-50'>30+</Typography.Text>
                 </div>
               </div>
+
             </div>
           </div>
         </div>

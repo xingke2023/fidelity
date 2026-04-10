@@ -753,8 +753,9 @@ openclaw "你好，请介绍一下自己"`} />
               <Text strong className='block mb-2'>接口说明</Text>
               <ul className='space-y-1 pl-4 list-disc' style={{ color: 'var(--semi-color-text-1)' }}>
                 <li><Text>视频生成为异步任务接口：先提交任务获取 <code className='font-mono text-xs px-1 py-0.5 rounded' style={{ background: 'var(--semi-color-fill-1)' }}>task_id</code>，再轮询状态获取结果。</Text></li>
-                <li><Text>支持纯文本生成视频（文生视频），也支持传入参考图片进行图生视频，或通过 <code className='font-mono text-xs px-1 py-0.5 rounded' style={{ background: 'var(--semi-color-fill-1)' }}>metadata.content</code> 传入参考视频、参考音频进行多模态创作。</Text></li>
+                <li><Text>请求体使用豆包原生格式：通过顶层 <code className='font-mono text-xs px-1 py-0.5 rounded' style={{ background: 'var(--semi-color-fill-1)' }}>content[]</code> 数组传入文本、图片、视频、音频等多模态素材。</Text></li>
                 <li><Text>可用模型：<code className='font-mono text-xs px-1 py-0.5 rounded' style={{ background: 'var(--semi-color-fill-1)' }}>doubao-seedance-2-0-fast-260128</code>（快速版）、<code className='font-mono text-xs px-1 py-0.5 rounded' style={{ background: 'var(--semi-color-fill-1)' }}>doubao-seedance-2-0-260128</code>（标准版）</Text></li>
+                <li><Text>计费：任务完成后按实际生成 token 数结算（后扣费），无视频输入 ¥46/百万 tokens，有视频输入 ¥28/百万 tokens（标准版）。</Text></li>
               </ul>
             </div>
 
@@ -772,13 +773,16 @@ openclaw "你好，请介绍一下自己"`} />
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -d '{
     "model": "doubao-seedance-2-0-fast-260128",
-    "prompt": "一只小猫在阳光明媚的花园中奔跑，慢镜头，电影感光线",
+    "content": [
+      {
+        "type": "text",
+        "text": "一只小猫在阳光明媚的花园中奔跑，慢镜头，电影感光线"
+      }
+    ],
+    "ratio": "16:9",
     "duration": 5,
-    "metadata": {
-      "ratio": "16:9",
-      "generate_audio": true,
-      "watermark": false
-    }
+    "generate_audio": true,
+    "watermark": false
   }'`} />
                 </TabPane>
                 <TabPane tab='cURL（图生视频）' itemKey='curl-i2v'>
@@ -787,16 +791,21 @@ openclaw "你好，请介绍一下自己"`} />
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -d '{
     "model": "doubao-seedance-2-0-fast-260128",
-    "prompt": "相机缓缓拉远，光线逐渐明亮",
-    "duration": 5,
-    "images": [
-      "https://example.com/reference_image.jpg"
+    "content": [
+      {
+        "type": "text",
+        "text": "相机缓缓拉远，光线逐渐明亮"
+      },
+      {
+        "type": "image_url",
+        "image_url": { "url": "https://example.com/reference_image.jpg" },
+        "role": "reference_image"
+      }
     ],
-    "metadata": {
-      "ratio": "16:9",
-      "generate_audio": true,
-      "watermark": false
-    }
+    "ratio": "16:9",
+    "duration": 5,
+    "generate_audio": true,
+    "watermark": false
   }'`} />
                 </TabPane>
                 <TabPane tab='cURL（多模态：参考视频+音频）' itemKey='curl-multi'>
@@ -804,28 +813,33 @@ openclaw "你好，请介绍一下自己"`} />
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -d '{
-    "model": "doubao-seedance-2-0-fast-260128",
-    "prompt": "全程使用视频1的第一视角构图，全程使用音频1作为背景音乐",
-    "duration": 11,
-    "images": [
-      "https://example.com/reference_image.jpg"
+    "model": "doubao-seedance-2-0-260128",
+    "content": [
+      {
+        "type": "text",
+        "text": "全程使用视频1的第一视角构图，全程使用音频1作为背景音乐"
+      },
+      {
+        "type": "image_url",
+        "image_url": { "url": "https://example.com/reference_image.jpg" },
+        "role": "reference_image"
+      },
+      {
+        "type": "video_url",
+        "video_url": { "url": "https://example.com/reference_video.mp4" },
+        "role": "reference_video"
+      },
+      {
+        "type": "audio_url",
+        "audio_url": { "url": "https://example.com/reference_audio.mp3" },
+        "role": "reference_audio"
+      }
     ],
-    "metadata": {
-      "ratio": "16:9",
-      "watermark": false,
-      "content": [
-        {
-          "type": "video_url",
-          "video_url": { "url": "https://example.com/reference_video.mp4" },
-          "role": "reference_video"
-        },
-        {
-          "type": "audio_url",
-          "audio_url": { "url": "https://example.com/reference_audio.mp3" },
-          "role": "reference_audio"
-        }
-      ]
-    }
+    "generate_audio": true,
+    "resolution": "720p",
+    "ratio": "16:9",
+    "duration": 8,
+    "watermark": false
   }'`} />
                 </TabPane>
                 <TabPane tab='Python' itemKey='python'>
@@ -838,17 +852,19 @@ HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
 }
 
-# 第一步：提交任务
-def create_video_task(prompt, ratio="16:9", duration=5):
+def create_video_task(text, ratio="16:9", duration=5, extra_content=None):
+    """提交视频生成任务，返回 task_id"""
+    content = [{"type": "text", "text": text}]
+    if extra_content:
+        content.extend(extra_content)
+
     payload = {
         "model": "doubao-seedance-2-0-fast-260128",
-        "prompt": prompt,
+        "content": content,
+        "ratio": ratio,
         "duration": duration,
-        "metadata": {
-            "ratio": ratio,
-            "generate_audio": True,
-            "watermark": False,
-        },
+        "generate_audio": True,
+        "watermark": False,
     }
     resp = requests.post(
         f"{BASE_URL}/v1/video/generations",
@@ -856,10 +872,21 @@ def create_video_task(prompt, ratio="16:9", duration=5):
         headers=HEADERS,
     )
     resp.raise_for_status()
-    return resp.json()["id"]  # 返回 task_id
+    return resp.json()["task_id"]
 
+# 文生视频
 task_id = create_video_task("一只小猫在花园中奔跑，慢镜头，电影感光线")
-print(f"任务已提交，task_id: {task_id}")`} />
+print(f"任务已提交，task_id: {task_id}")
+
+# 图生视频（含参考图片）
+task_id = create_video_task(
+    "相机缓缓拉远，光线逐渐明亮",
+    extra_content=[{
+        "type": "image_url",
+        "image_url": {"url": "https://example.com/ref.jpg"},
+        "role": "reference_image",
+    }]
+)`} />
                 </TabPane>
               </Tabs>
             </div>
@@ -912,8 +939,7 @@ def poll_task(task_id, interval=10, timeout=600):
             headers=HEADERS,
         )
         resp.raise_for_status()
-        result = resp.json()
-        data = result.get("data", {})
+        data = resp.json().get("data", {})
         status = data.get("status", "UNKNOWN")
 
         if status == "SUCCESS":
@@ -932,9 +958,7 @@ def poll_task(task_id, interval=10, timeout=600):
 
     raise TimeoutError(f"任务 {task_id} 在 {timeout}s 内未完成")
 
-# 完整示例：提交 + 轮询
-task_id = "YOUR_TASK_ID"  # 替换为上一步返回的 task_id
-video_url = poll_task(task_id)
+video_url = poll_task("YOUR_TASK_ID")
 print(f"视频已生成：{video_url}")`} />
                 </TabPane>
               </Tabs>
@@ -943,9 +967,6 @@ print(f"视频已生成：{video_url}")`} />
             {/* Task status explanation */}
             <div>
               <Text strong className='block mb-3'>任务状态说明</Text>
-              <Paragraph type='tertiary' className='mb-3'>
-                轮询响应格式：<code className='font-mono text-xs px-1 py-0.5 rounded' style={{ background: 'var(--semi-color-fill-1)' }}>{'{"code":"success","data":{"status":"...","progress":"...","result_url":"..."}}'}</code>，状态值在 <code className='font-mono text-xs px-1 py-0.5 rounded' style={{ background: 'var(--semi-color-fill-1)' }}>data.status</code> 字段中。
-              </Paragraph>
               <div className='overflow-x-auto rounded-lg' style={{ border: '1px solid var(--semi-color-border)' }}>
                 <table className='w-full text-sm'>
                   <thead>
@@ -985,14 +1006,17 @@ print(f"视频已生成：{video_url}")`} />
                   </thead>
                   <tbody>
                     {[
-                      { param: 'model', type: 'string', desc: '模型名称：doubao-seedance-2-0-fast-260128（快速版）或 doubao-seedance-2-0-260128（标准版）' },
-                      { param: 'prompt', type: 'string', desc: '文本描述（必填），可在提示词中用"图片1"、"视频1"、"音频1"等关键词引用传入的参考素材' },
-                      { param: 'duration', type: 'integer', desc: '视频时长（秒），通常支持 5 ~ 60' },
-                      { param: 'images', type: 'array', desc: '参考图片 URL 数组，用于图生视频场景' },
-                      { param: 'metadata.ratio', type: 'string', desc: '输出视频宽高比，支持 16:9 / 9:16 / 1:1 等' },
-                      { param: 'metadata.generate_audio', type: 'boolean', desc: '是否自动生成背景音效，默认 false' },
-                      { param: 'metadata.watermark', type: 'boolean', desc: '是否添加水印，默认 true，设为 false 去除水印' },
-                      { param: 'metadata.content', type: 'array', desc: '扩展多模态素材数组，支持 video_url / audio_url 类型，配合 role 字段（reference_video / reference_audio）使用' },
+                      { param: 'model', type: 'string', desc: '模型名称：doubao-seedance-2-0-260128（标准版）或 doubao-seedance-2-0-fast-260128（快速版）' },
+                      { param: 'content', type: 'array', desc: '多模态素材数组（必填）。元素类型：text（提示词文本）、image_url（参考图片）、video_url（参考视频）、audio_url（参考音频），图片/视频/音频元素需附带 role 字段标明用途' },
+                      { param: 'duration', type: 'number', desc: '视频时长（秒），默认 8，支持 4 ~ 15' },
+                      { param: 'ratio', type: 'string', desc: '输出视频宽高比，默认 16:9，支持 9:16、1:1 等' },
+                      { param: 'resolution', type: 'string', desc: '输出分辨率，默认 720p，可选 480p / 720p' },
+                      { param: 'generate_audio', type: 'boolean', desc: '是否自动生成背景音效，默认 true' },
+                      { param: 'watermark', type: 'boolean', desc: '是否添加水印，默认 false' },
+                      { param: 'tools', type: 'array', desc: '附加工具，传入 [{"type":"web_search"}] 可开启联网搜索辅助创作' },
+                      { param: 'callback_url', type: 'string', desc: '任务完成后的 Webhook 回调地址（可选）' },
+                      { param: 'seed', type: 'integer', desc: '随机种子，固定后可复现相同风格的视频' },
+                      { param: 'camera_fixed', type: 'boolean', desc: '是否固定镜头（无运镜），默认 false' },
                     ].map((row, i) => (
                       <tr key={row.param} style={{ borderTop: '1px solid var(--semi-color-border)', background: i % 2 === 0 ? 'transparent' : 'var(--semi-color-fill-0)' }}>
                         <td className='px-4 py-3 font-mono text-xs' style={{ color: 'var(--semi-color-primary)', whiteSpace: 'nowrap' }}>{row.param}</td>
@@ -1011,9 +1035,9 @@ print(f"视频已生成：{video_url}")`} />
               <div className='space-y-3'>
                 {[
                   { q: '参考素材使用建议', a: '参考图片建议使用清晰的 JPG/PNG（≥ 720p），参考视频时长与目标视频时长相近效果更佳，参考音频长度应覆盖整段视频时长。' },
-                  { q: '提示词技巧', a: '在文本中明确指定「参考图片1」、「视频1的构图」、「音频1作为背景音乐」等关键词，模型会优先按指示匹配素材。' },
-                  { q: '生成时间', a: '快速版（fast）约 30-150 秒，标准版质量更高但等待时间更长，建议轮询间隔设为 10 秒，超时上限建议设为 10 分钟。' },
-                  { q: '配额与计费', a: '视频生成按帧数/时长计费，请在令牌管理中确认余额充足，避免任务提交后因余额不足导致失败。' },
+                  { q: '提示词技巧', a: '在 content 的 text 中用"图片1"、"视频1的构图"、"音频1作为背景音乐"等关键词引用素材，模型会按顺序匹配 content 数组中对应类型的素材。' },
+                  { q: '生成时间', a: '快速版（fast）约 30~150 秒，标准版质量更高但等待时间更长，建议轮询间隔设为 10 秒，超时上限建议设为 10 分钟。' },
+                  { q: '计费方式', a: '后扣费模式：任务提交时不预扣费，任务完成后按实际生成 token 数结算。无视频输入时单价更高，含视频输入时单价较低，请确保账户余额充足。' },
                 ].map((item, i) => (
                   <div key={i} className='rounded-lg p-4' style={{ background: 'var(--semi-color-fill-0)', border: '1px solid var(--semi-color-border)' }}>
                     <Text strong className='block mb-1' style={{ color: 'var(--semi-color-primary)' }}>{item.q}</Text>

@@ -1623,15 +1623,67 @@ function renderPriceSimpleCore({
   return result;
 }
 
-export function renderTaskBillingProcess(other, content) {
+export function renderTaskBillingProcess(
+  other,
+  content,
+  completionTokens,
+  quota,
+) {
   if (other?.task_id != null) {
-    return renderBillingArticle(
-      [content].filter(Boolean),
-      { showReferenceNote: false },
-    );
+    // 任务完成后的实际扣费日志
+    const { symbol, rate } = getCurrencyConfig();
+    const quotaPerUnit = getQuotaPerUnit();
+    const modelRatio = formatRatioValue(other?.model_ratio);
+    const groupRatio = formatRatioValue(other?.group_ratio) || 1;
+    const videoInputRatio = other?.video_input;
+    const hasVideoInput =
+      videoInputRatio !== undefined && videoInputRatio !== null;
+    const effectiveRatio = hasVideoInput
+      ? modelRatio * videoInputRatio
+      : modelRatio;
+
+    const lines = [];
+
+    if (completionTokens > 0 && modelRatio > 0 && quotaPerUnit > 0) {
+      const unitPriceUsd = (effectiveRatio / quotaPerUnit) * 1e6;
+      const typeLabel = hasVideoInput
+        ? i18next.t('有视频输入')
+        : i18next.t('无视频输入');
+      lines.push(
+        i18next.t(
+          '{{type}}：{{tokens}} tokens × {{symbol}}{{price}}/1M × 分组倍率 {{groupRatio}}x',
+          {
+            type: typeLabel,
+            tokens: completionTokens.toLocaleString(),
+            symbol,
+            price: (unitPriceUsd * rate).toFixed(4),
+            groupRatio,
+          },
+        ),
+      );
+    }
+
+    if (quota > 0) {
+      lines.push(
+        i18next.t('实际扣费：{{amount}}', {
+          amount: renderQuota(quota, 4),
+        }),
+      );
+    }
+
+    if (lines.length === 0) {
+      lines.push(content);
+    }
+
+    return renderBillingArticle(lines.filter(Boolean), {
+      showReferenceNote: false,
+    });
   }
+  // 提交日志：显示预扣金额（后扣费模型为 0）
   return renderBillingArticle([
-    buildBillingText('任务预扣费（将在任务完成后按实际token重算）'),
+    i18next.t('任务预扣费：{{amount}}（将在任务完成后按实际token重算）', {
+      amount: renderQuota(quota ?? 0, 4),
+    }),
   ]);
 }
 
@@ -2108,6 +2160,7 @@ export function renderLogContent(
   fileSearchCallCount = 0,
   displayMode = 'price',
 ) {
+  const completionRatioValue = formatRatioValue(completionRatio);
   const {
     ratio,
     label: ratioLabel,
@@ -2133,11 +2186,13 @@ export function renderLogContent(
         symbol,
         price: (modelRatio * 2.0 * rate).toFixed(6),
       }),
-      i18next.t('输出价格 {{symbol}}{{price}} / 1M tokens', {
-        symbol,
-        price: (modelRatio * 2.0 * completionRatio * rate).toFixed(6),
-      }),
-    ];
+      completionRatioValue > 0
+        ? i18next.t('输出价格 {{symbol}}{{price}} / 1M tokens', {
+            symbol,
+            price: (modelRatio * 2.0 * completionRatioValue * rate).toFixed(6),
+          })
+        : null,
+    ].filter(Boolean);
     appendPricePart(
       parts,
       cacheRatio !== 1.0,
@@ -2190,7 +2245,7 @@ export function renderLogContent(
         {
           modelRatio: modelRatio,
           cacheRatio: cacheRatio,
-          completionRatio: completionRatio,
+          completionRatio: completionRatioValue,
           imageRatio: imageRatio,
           ratioType: ratioLabel,
           ratio,
@@ -2202,7 +2257,7 @@ export function renderLogContent(
         {
           modelRatio: modelRatio,
           cacheRatio: cacheRatio,
-          completionRatio: completionRatio,
+          completionRatio: completionRatioValue,
           ratioType: ratioLabel,
           ratio,
           webSearchCallCount,
@@ -2214,7 +2269,7 @@ export function renderLogContent(
         {
           modelRatio: modelRatio,
           cacheRatio: cacheRatio,
-          completionRatio: completionRatio,
+          completionRatio: completionRatioValue,
           ratioType: ratioLabel,
           ratio,
         },

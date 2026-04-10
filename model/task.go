@@ -416,6 +416,11 @@ func (t *Task) UpdateWithStatus(fromStatus TaskStatus) (bool, error) {
 	return result.RowsAffected > 0, nil
 }
 
+// UpdateTaskQuota updates only the quota field for a single task by ID.
+func UpdateTaskQuota(id int64, quota int) error {
+	return DB.Model(&Task{}).Where("id = ?", id).Update("quota", quota).Error
+}
+
 // TaskBulkUpdateByID performs an unconditional bulk UPDATE by primary key IDs.
 // WARNING: This function has NO CAS (Compare-And-Swap) guard — it will overwrite
 // any concurrent status changes. DO NOT use in billing/quota lifecycle flows
