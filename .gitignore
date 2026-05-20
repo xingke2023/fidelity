@@ -10,6 +10,9 @@ build
 logs
 web/dist
 .env
+db_credentials.txt
+*credentials*.txt
+*credentials*.json
 one-api
 new-api
 /__debug_bin*
