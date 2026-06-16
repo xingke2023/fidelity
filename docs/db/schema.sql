@@ -1,3 +1,4 @@
+mysqldump: [Warning] Using a password on the command line interface can be insecure.
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -9,6 +10,7 @@
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+mysqldump: Error: 'Access denied; you need (at least one of) the PROCESS privilege(s) for this operation' when trying to dump tablespaces
 DROP TABLE IF EXISTS `abilities`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -64,7 +66,7 @@ CREATE TABLE `channels` (
   PRIMARY KEY (`id`),
   KEY `idx_channels_name` (`name`),
   KEY `idx_channels_tag` (`tag`)
-) ENGINE=InnoDB AUTO_INCREMENT=42 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `checkins`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -146,7 +148,7 @@ CREATE TABLE `logs` (
   KEY `idx_logs_ip` (`ip`),
   KEY `idx_user_id_id` (`user_id`,`id`),
   KEY `idx_logs_request_id` (`request_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=19500 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=54733 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `midjourneys`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -279,7 +281,7 @@ CREATE TABLE `quota_data` (
   KEY `idx_quota_data_user_id` (`user_id`),
   KEY `idx_qdt_model_user_name` (`model_name`,`username`),
   KEY `idx_qdt_created_at` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=4090 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10774 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `redemptions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -300,7 +302,7 @@ CREATE TABLE `redemptions` (
   UNIQUE KEY `idx_redemptions_key` (`key`),
   KEY `idx_redemptions_name` (`name`),
   KEY `idx_redemptions_deleted_at` (`deleted_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `setups`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -414,7 +416,7 @@ CREATE TABLE `tasks` (
   KEY `idx_tasks_user_id` (`user_id`),
   KEY `idx_tasks_channel_id` (`channel_id`),
   KEY `idx_tasks_submit_time` (`submit_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=119 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=129 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `tokens`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -442,7 +444,7 @@ CREATE TABLE `tokens` (
   KEY `idx_tokens_deleted_at` (`deleted_at`),
   KEY `idx_tokens_user_id` (`user_id`),
   KEY `idx_tokens_name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=147 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=164 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `top_ups`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -461,7 +463,7 @@ CREATE TABLE `top_ups` (
   UNIQUE KEY `trade_no` (`trade_no`),
   KEY `idx_top_ups_user_id` (`user_id`),
   KEY `idx_top_ups_trade_no` (`trade_no`)
-) ENGINE=InnoDB AUTO_INCREMENT=58 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `two_fa_backup_codes`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -590,7 +592,7 @@ CREATE TABLE `users` (
   KEY `idx_users_discord_id` (`discord_id`),
   KEY `idx_users_we_chat_id` (`wechat_id`),
   KEY `idx_users_agent_id` (`agent_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=301 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=474 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vendors`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
