@@ -41,6 +41,16 @@ func SetVideoRouter(router *gin.Engine) {
 		klingV1Router.GET("/videos/image2video/:task_id", controller.RelayTaskFetch)
 	}
 
+	// Doubao official API routes - direct mapping to Volcengine API format
+	// docs: https://www.volcengine.com/docs/82379/1399008
+	doubaoRouter := router.Group("/api/v3/contents/generations")
+	doubaoRouter.Use(middleware.RouteTag("relay"))
+	doubaoRouter.Use(middleware.TokenAuth(), middleware.Distribute())
+	{
+		doubaoRouter.POST("/tasks", controller.RelayTask)
+		doubaoRouter.GET("/tasks/:task_id", controller.RelayTaskFetch)
+	}
+
 	// Jimeng official API routes - direct mapping to official API format
 	jimengOfficialGroup := router.Group("jimeng")
 	jimengOfficialGroup.Use(middleware.RouteTag("relay"))

@@ -56,17 +56,31 @@ func normalizeChannelTestEndpoint(channel *model.Channel, modelName, endpointTyp
 	return normalized
 }
 
+// unsupportedTestChannelTypes 列出不支持标准测试请求的渠道类型（异步任务类渠道）
+var unsupportedTestChannelTypes = []int{
+	constant.ChannelTypeMidjourney,
+	constant.ChannelTypeMidjourneyPlus,
+	constant.ChannelTypeSunoAPI,
+	constant.ChannelTypeKling,
+	constant.ChannelTypeJimeng,
+	constant.ChannelTypeDoubaoVideo,
+	constant.ChannelTypeVidu,
+}
+
+// testUserID 返回用于渠道测试的用户 id：优先使用 id=1，若该用户不存在
+// （部分部署中初始用户已被删除）则回退到 root 用户，避免测试因取不到用户而全部误判为失败。
+func testUserID() int {
+	if _, err := model.GetUserCache(1); err == nil {
+		return 1
+	}
+	if root := model.GetRootUser(); root != nil && root.Id > 0 {
+		return root.Id
+	}
+	return 1
+}
+
 func testChannel(channel *model.Channel, testModel string, endpointType string, isStream bool) testResult {
 	tik := time.Now()
-	var unsupportedTestChannelTypes = []int{
-		constant.ChannelTypeMidjourney,
-		constant.ChannelTypeMidjourneyPlus,
-		constant.ChannelTypeSunoAPI,
-		constant.ChannelTypeKling,
-		constant.ChannelTypeJimeng,
-		constant.ChannelTypeDoubaoVideo,
-		constant.ChannelTypeVidu,
-	}
 	if lo.Contains(unsupportedTestChannelTypes, channel.Type) {
 		channelTypeName := constant.GetChannelTypeName(channel.Type)
 		return testResult{
@@ -142,7 +156,8 @@ func testChannel(channel *model.Channel, testModel string, endpointType string, 
 		Header: make(http.Header),
 	}
 
-	cache, err := model.GetUserCache(1)
+	uid := testUserID()
+	cache, err := model.GetUserCache(uid)
 	if err != nil {
 		return testResult{
 			localErr:    err,
@@ -155,7 +170,7 @@ func testChannel(channel *model.Channel, testModel string, endpointType string, 
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Set("channel", channel.Type)
 	c.Set("base_url", channel.GetBaseURL())
-	group, _ := model.GetUserGroup(1, false)
+	group, _ := model.GetUserGroup(uid, false)
 	c.Set("group", group)
 
 	newAPIError := middleware.SetupContextForSelectedChannel(c, channel, testModel)
@@ -866,6 +881,106 @@ func TestAllChannels(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
+	})
+}
+
+// testAllChannelModels 对所有启用渠道下的每个模型逐个测试，并把结果交给
+// 监控状态机评估，最后聚合发送一封告警邮件。
+func testAllChannelModels() {
+	cfg := operation_setting.GetMonitorSetting()
+	channels, err := model.GetAllChannels(0, 0, true, false)
+	if err != nil {
+		common.SysError("[model-monitor] 获取渠道失败: " + err.Error())
+		return
+	}
+
+	perCycleCap := cfg.ModelTestPerCycleCap
+	if perCycleCap <= 0 {
+		perCycleCap = 200
+	}
+
+	tested := 0
+	skippedByCap := 0
+	for _, channel := range channels {
+		// 仅测试启用中的渠道
+		if channel.Status != common.ChannelStatusEnabled {
+			continue
+		}
+		// 跳过不支持标准测试的异步任务类渠道
+		if lo.Contains(unsupportedTestChannelTypes, channel.Type) {
+			continue
+		}
+		for _, m := range channel.GetModels() {
+			m = strings.TrimSpace(m)
+			if m == "" {
+				continue
+			}
+			if tested >= perCycleCap {
+				skippedByCap++
+				continue
+			}
+			tested++
+
+			tik := time.Now()
+			result := testChannel(channel, m, "", false)
+			ms := time.Since(tik).Milliseconds()
+
+			ok := true
+			reason := ""
+			switch {
+			case result.localErr != nil:
+				ok = false
+				reason = result.localErr.Error()
+			case result.newAPIError != nil:
+				ok = false
+				reason = result.newAPIError.Error()
+			case cfg.AlertResponseSeconds > 0 && float64(ms)/1000.0 > cfg.AlertResponseSeconds:
+				ok = false
+				reason = fmt.Sprintf("响应 %.2fs 超过阈值 %.2fs", float64(ms)/1000.0, cfg.AlertResponseSeconds)
+			}
+
+			service.RecordModelTestResult(channel.Id, channel.Name, m, ok, reason, ms)
+			time.Sleep(common.RequestInterval)
+		}
+	}
+
+	if skippedByCap > 0 {
+		common.SysLog(fmt.Sprintf("[model-monitor] 本周期测试 %d 个(渠道,模型)，因上限 %d 跳过 %d 个", tested, perCycleCap, skippedByCap))
+	} else {
+		common.SysLog(fmt.Sprintf("[model-monitor] 本周期测试 %d 个(渠道,模型)", tested))
+	}
+
+	service.FlushModelMonitorAlerts()
+}
+
+var autoTestChannelModelsOnce sync.Once
+
+// AutomaticallyTestChannelModels 定时按模型监控所有渠道，仅在 Master 节点运行，
+// 受 MonitorSetting.ModelTestEnabled 开关控制。
+func AutomaticallyTestChannelModels() {
+	if !common.IsMasterNode {
+		return
+	}
+	autoTestChannelModelsOnce.Do(func() {
+		for {
+			if !operation_setting.GetMonitorSetting().ModelTestEnabled {
+				time.Sleep(1 * time.Minute)
+				continue
+			}
+			for {
+				frequency := operation_setting.GetMonitorSetting().ModelTestMinutes
+				if frequency <= 0 {
+					frequency = 15
+				}
+				time.Sleep(time.Duration(int(math.Round(frequency))) * time.Minute)
+				common.SysLog("[model-monitor] 开始按模型测试所有渠道")
+				testAllChannelModels()
+				common.SysLog("[model-monitor] 按模型测试完成")
+				if !operation_setting.GetMonitorSetting().ModelTestEnabled {
+					break
+				}
+			}
+		}
 	})
 }
 

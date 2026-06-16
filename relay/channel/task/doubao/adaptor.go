@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -211,13 +210,8 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 		return
 	}
 
-	ov := dto.NewOpenAIVideo()
-	ov.ID = info.PublicTaskID
-	ov.TaskID = info.PublicTaskID
-	ov.CreatedAt = time.Now().Unix()
-	ov.Model = info.OriginModelName
-
-	c.JSON(http.StatusOK, ov)
+	// Submit response matches official Volcengine format: {"id": "<task_id>"}
+	c.JSON(http.StatusOK, gin.H{"id": info.PublicTaskID})
 	return dResp.ID, responseBody, nil
 }
 
@@ -290,29 +284,14 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 }
 
 func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, error) {
-	var dResp responseTask
-	if err := common.Unmarshal(originTask.Data, &dResp); err != nil {
+	// Pass through the official Volcengine response structure, replacing only the
+	// upstream task id with our proxy's public task id so clients can continue polling.
+	var raw map[string]any
+	if err := common.Unmarshal(originTask.Data, &raw); err != nil {
 		return nil, errors.Wrap(err, "unmarshal doubao task data failed")
 	}
-
-	openAIVideo := dto.NewOpenAIVideo()
-	openAIVideo.ID = originTask.TaskID
-	openAIVideo.TaskID = originTask.TaskID
-	openAIVideo.Status = originTask.Status.ToVideoStatus()
-	openAIVideo.SetProgressStr(originTask.Progress)
-	openAIVideo.SetMetadata("url", dResp.Content.VideoURL)
-	openAIVideo.CreatedAt = originTask.CreatedAt
-	openAIVideo.CompletedAt = originTask.UpdatedAt
-	openAIVideo.Model = originTask.Properties.OriginModelName
-
-	if dResp.Status == "failed" {
-		openAIVideo.Error = &dto.OpenAIVideoError{
-			Message: dResp.Error.Message,
-			Code:    dResp.Error.Code,
-		}
-	}
-
-	return common.Marshal(openAIVideo)
+	raw["id"] = originTask.TaskID
+	return common.Marshal(raw)
 }
 
 // ============================
