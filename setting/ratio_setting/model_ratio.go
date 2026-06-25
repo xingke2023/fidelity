@@ -271,8 +271,10 @@ var defaultModelRatio = map[string]float64{
 	// doubao video — 按无视频输入单价设置，有视频输入时由 videoInputRatioMap 乘以折扣
 	// doubao-seedance-2-0-260128:      ¥46/1M tokens（无视频）/ ¥28/1M tokens（有视频）
 	// doubao-seedance-2-0-fast-260128: ¥37/1M tokens（无视频）/ ¥22/1M tokens（有视频）
-	"doubao-seedance-2-0-260128":      46.0 / 1000 * RMB, // ≈ 3.1507
-	"doubao-seedance-2-0-fast-260128": 37.0 / 1000 * RMB, // ≈ 2.5342
+	"doubao-seedance-2-0-260128":        46.0 / 1000 * RMB, // ≈ 3.1507
+	"doubao-seedance-2-0-fast-260128":   37.0 / 1000 * RMB, // ≈ 2.5342
+	"dreamina-seedance-2-0-260128":      46.0 / 1000 * RMB,
+	"dreamina-seedance-2-0-fast-260128": 37.0 / 1000 * RMB,
 }
 
 var defaultModelPrice = map[string]float64{

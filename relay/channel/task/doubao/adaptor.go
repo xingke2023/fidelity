@@ -284,14 +284,46 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 }
 
 func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, error) {
-	// Pass through the official Volcengine response structure, replacing only the
-	// upstream task id with our proxy's public task id so clients can continue polling.
 	var raw map[string]any
 	if err := common.Unmarshal(originTask.Data, &raw); err != nil {
 		return nil, errors.Wrap(err, "unmarshal doubao task data failed")
 	}
 	raw["id"] = originTask.TaskID
+
+	// task.Data only contains the submit response ({"id": "..."}) until the polling
+	// worker runs and overwrites it with the full GET response. Fill in the missing
+	// fields from the task model so clients see a valid status object immediately.
+	if _, hasStatus := raw["status"]; !hasStatus {
+		raw["status"] = doubaoStatusFromTask(originTask.Status)
+		modelName := originTask.Properties.OriginModelName
+		if modelName == "" {
+			modelName = originTask.Properties.UpstreamModelName
+		}
+		if modelName != "" {
+			raw["model"] = modelName
+		}
+		createdAt := originTask.SubmitTime
+		if createdAt == 0 {
+			createdAt = originTask.CreatedAt
+		}
+		raw["created_at"] = createdAt
+		raw["updated_at"] = originTask.UpdatedAt
+	}
+
 	return common.Marshal(raw)
+}
+
+func doubaoStatusFromTask(status model.TaskStatus) string {
+	switch status {
+	case model.TaskStatusInProgress:
+		return "running"
+	case model.TaskStatusSuccess:
+		return "succeeded"
+	case model.TaskStatusFailure:
+		return "failed"
+	default:
+		return "queued"
+	}
 }
 
 // ============================

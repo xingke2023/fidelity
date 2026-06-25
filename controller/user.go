@@ -147,8 +147,16 @@ func Register(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserInputInvalid, map[string]any{"Error": err.Error()})
 		return
 	}
+	if user.Email == "" {
+		common.ApiError(c, fmt.Errorf("邮箱不能为空"))
+		return
+	}
+	if user.Phone == "" {
+		common.ApiError(c, fmt.Errorf("手机号不能为空"))
+		return
+	}
 	if common.EmailVerificationEnabled {
-		if user.Email == "" || user.VerificationCode == "" {
+		if user.VerificationCode == "" {
 			common.ApiErrorI18n(c, i18n.MsgUserEmailVerificationRequired)
 			return
 		}
@@ -174,10 +182,9 @@ func Register(c *gin.Context) {
 		Password:    user.Password,
 		DisplayName: user.Username,
 		InviterId:   inviterId,
-		Role:        common.RoleCommonUser, // 明确设置角色为普通用户
-	}
-	if common.EmailVerificationEnabled {
-		cleanUser.Email = user.Email
+		Role:        common.RoleCommonUser,
+		Email:       user.Email,
+		Phone:       user.Phone,
 	}
 	if err := cleanUser.Insert(inviterId); err != nil {
 		common.ApiError(c, err)

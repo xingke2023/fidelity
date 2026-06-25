@@ -78,6 +78,7 @@ const RegisterForm = () => {
     password: '',
     password2: '',
     email: '',
+    phone: '',
     verification_code: '',
     wechat_verification_code: '',
   });
@@ -222,6 +223,14 @@ const RegisterForm = () => {
     }
     if (password !== password2) {
       showInfo('两次输入的密码不一致');
+      return;
+    }
+    if (!inputs.email) {
+      showInfo('邮箱不能为空！');
+      return;
+    }
+    if (!inputs.phone) {
+      showInfo('手机号不能为空！');
       return;
     }
     if (username && password) {
@@ -602,39 +611,51 @@ const RegisterForm = () => {
                   prefix={<IconLock />}
                 />
 
+                <Form.Input
+                  field='email'
+                  label={t('邮箱')}
+                  placeholder={t('输入邮箱地址')}
+                  name='email'
+                  type='email'
+                  required
+                  onChange={(value) => handleChange('email', value)}
+                  prefix={<IconMail />}
+                  suffix={
+                    showEmailVerification ? (
+                      <Button
+                        onClick={sendVerificationCode}
+                        loading={verificationCodeLoading}
+                        disabled={disableButton || verificationCodeLoading}
+                      >
+                        {disableButton
+                          ? `${t('重新发送')} (${countdown})`
+                          : t('获取验证码')}
+                      </Button>
+                    ) : null
+                  }
+                />
+
+                <Form.Input
+                  field='phone'
+                  label={t('手机号')}
+                  placeholder={t('输入手机号码')}
+                  name='phone'
+                  required
+                  onChange={(value) => handleChange('phone', value)}
+                  prefix={<IconUser />}
+                />
+
                 {showEmailVerification && (
-                  <>
-                    <Form.Input
-                      field='email'
-                      label={t('邮箱')}
-                      placeholder={t('输入邮箱地址')}
-                      name='email'
-                      type='email'
-                      onChange={(value) => handleChange('email', value)}
-                      prefix={<IconMail />}
-                      suffix={
-                        <Button
-                          onClick={sendVerificationCode}
-                          loading={verificationCodeLoading}
-                          disabled={disableButton || verificationCodeLoading}
-                        >
-                          {disableButton
-                            ? `${t('重新发送')} (${countdown})`
-                            : t('获取验证码')}
-                        </Button>
-                      }
-                    />
-                    <Form.Input
-                      field='verification_code'
-                      label={t('验证码')}
-                      placeholder={t('输入验证码')}
-                      name='verification_code'
-                      onChange={(value) =>
-                        handleChange('verification_code', value)
-                      }
-                      prefix={<IconKey />}
-                    />
-                  </>
+                  <Form.Input
+                    field='verification_code'
+                    label={t('验证码')}
+                    placeholder={t('输入验证码')}
+                    name='verification_code'
+                    onChange={(value) =>
+                      handleChange('verification_code', value)
+                    }
+                    prefix={<IconKey />}
+                  />
                 )}
 
                 {(hasUserAgreement || hasPrivacyPolicy) && (

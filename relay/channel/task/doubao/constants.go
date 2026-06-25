@@ -7,6 +7,8 @@ var ModelList = []string{
 	"doubao-seedance-1-5-pro-251215",
 	"doubao-seedance-2-0-260128",
 	"doubao-seedance-2-0-fast-260128",
+	"dreamina-seedance-2-0-260128",
+	"dreamina-seedance-2-0-fast-260128",
 }
 
 var ChannelName = "doubao-video"
@@ -17,9 +19,13 @@ var ChannelName = "doubao-video"
 //
 //	doubao-seedance-2-0-260128:      无视频 ¥46/M，有视频 ¥28/M → ratio = 28/46
 //	doubao-seedance-2-0-fast-260128: 无视频 ¥37/M，有视频 ¥22/M → ratio = 22/37
+//	dreamina-seedance-2-0-260128:    同 doubao-seedance-2-0-260128
+//	dreamina-seedance-2-0-fast-260128: 同 doubao-seedance-2-0-fast-260128
 var videoInputRatioMap = map[string]float64{
-	"doubao-seedance-2-0-260128":      28.0 / 46.0, // ≈ 0.6087
-	"doubao-seedance-2-0-fast-260128": 22.0 / 37.0, // ≈ 0.5946
+	"doubao-seedance-2-0-260128":        28.0 / 46.0, // ≈ 0.6087
+	"doubao-seedance-2-0-fast-260128":   22.0 / 37.0, // ≈ 0.5946
+	"dreamina-seedance-2-0-260128":      28.0 / 46.0,
+	"dreamina-seedance-2-0-fast-260128": 22.0 / 37.0,
 }
 
 func GetVideoInputRatio(modelName string) (float64, bool) {
@@ -30,8 +36,10 @@ func GetVideoInputRatio(modelName string) (float64, bool) {
 // postBillingModels 后扣费模型：提交时不预扣，任务完成后按实际 total_tokens 结算；
 // 任务失败时无预扣费，无需退款。
 var postBillingModels = map[string]struct{}{
-	"doubao-seedance-2-0-260128":      {},
-	"doubao-seedance-2-0-fast-260128": {},
+	"doubao-seedance-2-0-260128":        {},
+	"doubao-seedance-2-0-fast-260128":   {},
+	"dreamina-seedance-2-0-260128":      {},
+	"dreamina-seedance-2-0-fast-260128": {},
 }
 
 func isPostBillingModel(modelName string) bool {
